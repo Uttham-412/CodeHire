@@ -18,7 +18,8 @@ import {
   Check,
   Copy,
   BrainCircuit,
-  Code
+  Code,
+  Eye,
 } from 'lucide-react';
 import { InterviewSession, Candidate, InterviewStatus, CandidateStatus, Question } from '../types';
 
@@ -34,6 +35,51 @@ interface InterviewsProps {
   selectedCandidateForSchedule?: Candidate | null;
   clearSelectedCandidateForSchedule?: () => void;
 }
+
+const InterviewDetailsModal = ({ interview, open, onClose }: any) => {
+  if (!open || !interview) return null;
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('Copied to clipboard');
+    } catch (e) {
+      console.error('Copy failed', e);
+    }
+  };
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+      <div className="bg-white p-6 rounded-xl max-w-md w-full shadow-2xl">
+          <h2 className="text-xl font-bold mb-4">Interview Details</h2>
+          <p><strong>Title:</strong> {interview.role || 'N/A'}</p>
+          <p><strong>Candidate Name:</strong> {interview.candidateName || 'N/A'}</p>
+          <p><strong>Candidate Email:</strong> {interview.candidateEmail || 'N/A'}</p>
+          <p><strong>Interviewer:</strong> {interview.interviewerName || 'N/A'}</p>
+          <p><strong>Scheduled:</strong> {interview.date} {interview.time}</p>
+          <p><strong>Duration:</strong> {interview.duration ? `${interview.duration} mins` : 'N/A'}</p>
+          <p><strong>Programming Language:</strong> {interview.selectedLanguage || 'N/A'}</p>
+          <p><strong>Coding Questions:</strong> {interview.codingQuestions ? interview.codingQuestions.join(', ') : 'N/A'}</p>
+          <p><strong>Aptitude Enabled:</strong> {interview.aptitudeTestId ? 'Yes' : 'No'}</p>
+          <p><strong>HR Round Enabled:</strong> {interview.hrNotes || interview.hrRating ? 'Yes' : 'No'}</p>
+          <p><strong>Status:</strong> {interview.status}</p>
+          <p><strong>Joining ID:</strong> {interview.joiningId || 'N/A'}</p>
+          <p><strong>Join Link:</strong> {interview.interviewLink ? (<a href={interview.interviewLink} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">Link</a>) : 'N/A'}</p>
+          <div className="mt-4 flex space-x-2">
+            <button onClick={() => copyToClipboard(interview.joiningId || '')} className="px-3 py-1 bg-indigo-600 text-white rounded text-sm">
+              Copy Joining ID
+            </button>
+            {interview.interviewLink && (
+              <button onClick={() => copyToClipboard(interview.interviewLink)} className="px-3 py-1 bg-indigo-600 text-white rounded text-sm">
+                Copy Join Link
+              </button>
+            )}
+          </div>
+          <button onClick={onClose} className="mt-4 px-3 py-1 bg-slate-200 rounded text-sm">
+            Close
+          </button>
+        </div>
+    </div>
+  );
+};
 
 export default function Interviews({
   interviews,
@@ -53,7 +99,31 @@ export default function Interviews({
   const [finalScore, setFinalScore] = useState<number>(4.0);
   const [finalFeedback, setFinalFeedback] = useState<string>('');
   const [recommendedStatus, setRecommendedStatus] = useState<CandidateStatus>('Passed');
+// New states for interview details modal
+const [detailInterview, setDetailInterview] = useState<InterviewSession | null>(null);
+const [detailLoading, setDetailLoading] = useState<boolean>(false);
+const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
+const [copyMessage, setCopyMessage] = useState<string>('');
 
+   // Function to fetch interview details
+   const fetchInterviewDetails = async (interviewId: string) => {
+     setDetailLoading(true);
+     try {
+       const res = await fetch(`/api/interviews/${interviewId}`);
+       const data = await res.json();
+       if (res.ok && data.success) {
+         setDetailInterview(data.interview);
+         setShowDetailModal(true);
+       } else {
+         alert('Failed to fetch interview details');
+       }
+     } catch (e) {
+       console.error(e);
+       alert('Error fetching interview details');
+     } finally {
+       setDetailLoading(false);
+     }
+   };
   // Schedule Form State
   const [isScheduleOpen, setIsScheduleOpen] = useState(!!selectedCandidateForSchedule);
   const [targetCandidateId, setTargetCandidateId] = useState(selectedCandidateForSchedule?.id || '');
@@ -135,6 +205,7 @@ export default function Interviews({
 
   return (
     <div className="p-6 flex flex-col gap-6 overflow-y-auto h-full max-w-7xl mx-auto w-full relative">
+      <InterviewDetailsModal interview={detailInterview} open={showDetailModal} onClose={() => setShowDetailModal(false)} />
       
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
@@ -217,7 +288,15 @@ export default function Interviews({
                         <Copy className="h-4 w-4" />
                       )}
                     </button>
-                  </div>
+
+                                        <button
+                        onClick={() => fetchInterviewDetails(session.id)}
+                        className="h-9 w-9 flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white"
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      </div>
                 </div>
               ))
             ) : (
@@ -285,6 +364,15 @@ export default function Interviews({
                         ) : (
                           <Copy className="h-4 w-4" />
                         )}
+</button>
+
+                      
+                      <button
+                        onClick={() => fetchInterviewDetails(session.id)}
+                        className="h-9 w-9 flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white"
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => onDeleteInterview(session.id)}
@@ -647,6 +735,12 @@ export default function Interviews({
         </div>
       )}
 
+      {detailLoading && showDetailModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg">Loading...</div>
+        </div>
+      )}
+      <InterviewDetailsModal interview={detailInterview} open={showDetailModal} onClose={() => setShowDetailModal(false)} />
     </div>
   );
 }
