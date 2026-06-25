@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, ArrowRight, User, ShieldCheck, Key, Video, HelpCircle } from 'lucide-react';
 import { InterviewSession } from '../types';
+import { auth, signInWithEmailAndPassword } from '../firebase/firebase';
 
 interface LoginProps {
   interviews: InterviewSession[];
@@ -20,14 +21,49 @@ export default function Login({ interviews, onLogin }: LoginProps) {
   const [joiningId, setJoiningId] = useState('');
   const [candidateName, setCandidateName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInterviewerLogin = (e: React.FormEvent) => {
+  const handleInterviewerLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin({
-      role: 'Interviewer',
-      email: email,
-    });
-    navigate('/dashboard');
+    setIsSubmitting(true);
+    setErrorMsg('');
+
+    try {
+      // 1. Sign in to Firebase Auth using Client SDK
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // 2. Retrieve Firebase ID Token
+      const idToken = await userCredential.user.getIdToken();
+
+      // 3. Request profile verification from Express backend
+      const API_URL = 'http://localhost:5000';
+      const response = await fetch(`${API_URL}/api/auth/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to verify account on backend.');
+      }
+
+      const data = await response.json();
+
+      // 4. Store token in local storage
+      localStorage.setItem('interviewos_token', idToken);
+
+      // 5. Notify parent component
+      onLogin(data.user);
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setErrorMsg(error.message || 'Failed to authenticate. Please check your credentials.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCandidateJoin = (e: React.FormEvent) => {
@@ -155,9 +191,10 @@ export default function Login({ interviews, onLogin }: LoginProps) {
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full h-10 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                  disabled={isSubmitting}
+                  className="w-full h-10 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span>Launch Workspace</span>
+                  <span>{isSubmitting ? 'Authenticating...' : 'Launch Workspace'}</span>
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>

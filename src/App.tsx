@@ -21,6 +21,7 @@ import {
   getQuestions, 
   saveQuestions 
 } from './data';
+import { auth, signOut } from './firebase/firebase';
 
 function MainLayout() {
   const navigate = useNavigate();
@@ -35,11 +36,9 @@ function MainLayout() {
   const [activeSession, setActiveSession] = useState<InterviewSession | null>(null);
   const [candidateToSchedule, setCandidateToSchedule] = useState<Candidate | null>(null);
 
-  // Role authentication state (defaults to Interviewer for initial sandbox ease)
-  const [currentUser, setCurrentUser] = useState<{ role: 'Interviewer' | 'Candidate'; email?: string; joiningId?: string } | null>(() => {
-    const stored = localStorage.getItem('interviewos_current_user');
-    return stored ? JSON.parse(stored) : { role: 'Interviewer', email: 'uttham188@gmail.com' };
-  });
+  // Role authentication state (starts as null to enforce authentication)
+  const [currentUser, setCurrentUser] = useState<{ role: 'Interviewer' | 'Candidate'; email?: string; joiningId?: string } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Determine current active sidebar tab based on pathname
   const currentTab = location.pathname.substring(1) || 'dashboard';
@@ -50,6 +49,59 @@ function MainLayout() {
     setCandidates(getCandidates());
     setInterviews(getInterviews());
     setQuestions(getQuestions());
+
+    const verifyToken = async () => {
+      const token = localStorage.getItem('interviewos_token');
+      const storedUser = localStorage.getItem('interviewos_current_user');
+
+      if (token) {
+        try {
+          const API_URL = 'http://localhost:5000';
+          const response = await fetch(`${API_URL}/api/auth/me`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setCurrentUser(data.user);
+            localStorage.setItem('interviewos_current_user', JSON.stringify(data.user));
+          } else {
+            // Token expired or invalid
+            localStorage.removeItem('interviewos_token');
+            localStorage.removeItem('interviewos_current_user');
+            setCurrentUser(null);
+          }
+        } catch (error) {
+          console.error('Session restoration failed:', error);
+          // If server is not reachable, do not throw, but clear session
+          localStorage.removeItem('interviewos_token');
+          localStorage.removeItem('interviewos_current_user');
+          setCurrentUser(null);
+        }
+      } else if (storedUser) {
+        // If a candidate session is stored, restore it
+        try {
+          const parsed = JSON.parse(storedUser);
+          if (parsed.role === 'Candidate') {
+            setCurrentUser(parsed);
+          } else {
+            localStorage.removeItem('interviewos_current_user');
+            setCurrentUser(null);
+          }
+        } catch (e) {
+          localStorage.removeItem('interviewos_current_user');
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setAuthLoading(false);
+    };
+
+    verifyToken();
   }, []);
 
   // Sync joining ID from direct link accesses
@@ -245,11 +297,28 @@ function MainLayout() {
     setActiveSession({ ...activeSession, codeSolution });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error('Firebase signOut error:', e);
+    }
     setCurrentUser(null);
+    localStorage.removeItem('interviewos_token');
     localStorage.removeItem('interviewos_current_user');
     navigate('/login');
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-xs text-slate-500 font-semibold">Verifying secure session...</span>
+        </div>
+      </div>
+    );
+  }
 
   // 1. UNPROTECTED / UNAUTHENTICATED GATEWAY
   if (!currentUser) {
