@@ -21,9 +21,39 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
+function registerUser(email: string, password: string) {
+  return createUserWithEmailAndPassword(auth, email, password);
+}
+
+function loginUser(email: string, password: string) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+function logoutUser() {
+  return signOut(auth);
+}
+
+function getCurrentUser() {
+  return auth.currentUser;
+}
+
+async function getIdToken() {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('No user is signed in');
+  }
+  return await user.getIdToken();
+}
+
 export {
+  app,
   auth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut
+  signOut,
+  registerUser,
+  loginUser,
+  logoutUser,
+  getCurrentUser,
+  getIdToken
 };

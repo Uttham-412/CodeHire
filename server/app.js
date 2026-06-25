@@ -35,7 +35,7 @@ app.get('/api/firebase/status', (req, res) => {
 // Routes (to be added later)
 app.use('/api/auth', require('./routes/authRoutes'));
 // app.use('/api/candidates', require('./routes/candidateRoutes'));
-// app.use('/api/interviews', require('./routes/interviewRoutes'));
+app.use('/api/interviews', require('./routes/interviewRoutes'));
 // app.use('/api/questions', require('./routes/questionRoutes'));
 // app.use('/api/reports', require('./routes/reportRoutes'));
 
