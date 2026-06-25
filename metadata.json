@@ -1,0 +1,6 @@
+{
+  "name": "InterviewOS",
+  "description": "A comprehensive technical interview platform featuring coding sandbox, candidate tracking, interview scheduler, and questions bank.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
