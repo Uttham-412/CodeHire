@@ -1,4 +1,12 @@
 const admin = require('firebase-admin');
+const { getAuth } = require('firebase-admin/auth');
+const { getFirestore } = require('firebase-admin/firestore');
+let getStorage = null;
+try {
+  getStorage = require('firebase-admin/storage').getStorage;
+} catch (storageImportError) {
+  console.warn('Firebase storage module unavailable:', storageImportError.message);
+}
 
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -23,9 +31,10 @@ if (!hasCredentials) {
     }
     formattedPrivateKey = formattedPrivateKey.replace(/\\n/g, '\n');
 
-    if (admin.apps.length === 0) {
+    const currentApps = typeof admin.getApps === 'function' ? admin.getApps() : admin.apps;
+    if (!currentApps || currentApps.length === 0) {
       admin.initializeApp({
-        credential: admin.credential.cert({
+        credential: admin.cert({
           projectId,
           clientEmail,
           privateKey: formattedPrivateKey,
@@ -34,11 +43,15 @@ if (!hasCredentials) {
       });
     }
 
-    auth = admin.auth();
-    firestore = admin.firestore();
-    storage = admin.storage();
+    auth = getAuth();
+    firestore = getFirestore();
+    if (getStorage) {
+      storage = getStorage();
+    }
     isInitialized = true;
   } catch (error) {
+    console.error('Firebase initialization failed:', error);
+    console.error(error.stack);
     initError = error.message;
   }
 }

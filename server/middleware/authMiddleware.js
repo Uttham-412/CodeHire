@@ -26,12 +26,23 @@ const protect = async (req, res, next) => {
       const decodedToken = await firebaseAuth.verifyIdToken(token);
 
       // Load user profile from Firestore using decoded uid
-      const user = await userService.getById(decodedToken.uid);
+      let user = await userService.getById(decodedToken.uid);
 
       if (!user) {
-        return res.status(404).json({
-          success: false,
-          error: 'User profile not found in Firestore.'
+        // If the user exists in Firebase Auth but has no Firestore profile, create one automatically.
+        const authUser = await firebaseAuth.getUser(decodedToken.uid);
+        const email = authUser.email ? authUser.email.toLowerCase() : null;
+        const name = authUser.displayName || decodedToken.name || (email ? email.split('@')[0] : 'Anonymous');
+        const role = 'Candidate';
+
+        user = await userService.create({
+          id: decodedToken.uid,
+          uid: decodedToken.uid,
+          name,
+          email,
+          role,
+          createdAt: new Date(),
+          updatedAt: new Date()
         });
       }
 

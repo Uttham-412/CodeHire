@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, ArrowRight, User, ShieldCheck, Key, Video, HelpCircle } from 'lucide-react';
 import { InterviewSession } from '../types';
-import { auth, signInWithEmailAndPassword } from '../firebase/firebase';
+import { loginUser } from '../firebase/firebase';
 
 interface LoginProps {
   interviews: InterviewSession[];
@@ -29,8 +29,8 @@ export default function Login({ interviews, onLogin }: LoginProps) {
     setErrorMsg('');
 
     try {
-      // 1. Sign in to Firebase Auth using Client SDK
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // 1. Sign in to Firebase Auth using centralized helper
+      const userCredential = await loginUser(email, password);
       
       // 2. Retrieve Firebase ID Token
       const idToken = await userCredential.user.getIdToken();

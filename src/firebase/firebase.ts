@@ -26,7 +26,9 @@ console.log('Firebase config loaded:', {
 
 // Initialize Firebase App and services
 const app = initializeApp(firebaseConfig);
-const analytics: Analytics = getAnalytics(app);
+const analytics: Analytics | null = typeof window !== 'undefined' && typeof window.navigator !== 'undefined'
+  ? getAnalytics(app)
+  : null;
 const auth: Auth = getAuth(app);
 
 // Helper auth functions

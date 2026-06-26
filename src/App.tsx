@@ -21,7 +21,7 @@ import {
   getQuestions, 
   saveQuestions 
 } from './data';
-import { auth, signOut } from './firebase/firebase';
+import { logoutUser } from './firebase/firebase';
 
 function MainLayout() {
   const navigate = useNavigate();
@@ -299,7 +299,7 @@ function MainLayout() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await logoutUser();
     } catch (e) {
       console.error('Firebase signOut error:', e);
     }
